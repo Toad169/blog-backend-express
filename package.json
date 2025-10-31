@@ -1,0 +1,28 @@
+{
+  "name": "gaynigger",
+  "version": "1.0.0",
+  "description": "ok",
+  "keywords": [
+    "idfk"
+  ],
+  "homepage": "https://github.com/Toad169/blog-backend-express#readme",
+  "bugs": {
+    "url": "https://github.com/Toad169/blog-backend-express/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Toad169/blog-backend-express.git"
+  },
+  "license": "ISC",
+  "author": "Toad169",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "multer": "^2.0.2"
+  }
+}
