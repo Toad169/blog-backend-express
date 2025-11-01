@@ -3,14 +3,23 @@ import express from 'express';
 import {
   createComment,
   updateComment,
-  deleteComment
+  deleteComment,
+  getPostComments
 } from '../controllers/commentController.js';
-import { authenticate } from '../middleware/auth.js';
+import { 
+  authenticate, 
+  authorize, 
+  commentOwnership 
+} from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Public routes
+router.get('/post/:postId', getPostComments);
+
+// Protected routes
 router.post('/', authenticate, createComment);
-router.put('/:commentId', authenticate, updateComment);
-router.delete('/:commentId', authenticate, deleteComment);
+router.put('/:commentId', authenticate, commentOwnership, updateComment);
+router.delete('/:commentId', authenticate, commentOwnership, deleteComment);
 
 export default router;
