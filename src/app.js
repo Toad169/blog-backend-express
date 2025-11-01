@@ -7,6 +7,9 @@ import { config } from './config/env.js';
 
 import authRoutes from './routes/auth.js';
 import postRoutes from './routes/posts.js';
+import userRoutes from './routes/users.js';
+import commentRoutes from './routes/comments.js';
+import voteRoutes from './routes/votes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,6 +24,9 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/votes', voteRoutes);
 
 // Error handling middleware
 app.use((error, req, res, next) => {
