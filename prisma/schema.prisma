@@ -1,0 +1,130 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String   @id @default(cuid())
+  username      String   @unique
+  email         String   @unique
+  passwordHash  String
+  emailVerified Boolean  @default(false)
+  role          Role     @default(mod)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  posts         Post[]
+  comments      Comments[]
+  votes         Vote[]
+
+  @@map("users")
+}
+
+// Add to Post model in prisma/schema.prisma
+model Post {
+  id         String       @id @default(cuid())
+  userId     String
+  title      String
+  slug       String       @unique
+  content    String       // This will store markdown
+  contentHtml String?     // Optional: can store rendered HTML if you want server-side rendering
+  imageUrl   String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  // ... rest of fields
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments   Comments[]
+  votes      Vote[]
+  tags       PostTag[]
+  categories PostCategory[]
+
+  @@map("posts")
+}
+
+model Tags {
+  id   String @id @default(cuid())
+  name String @unique
+  posts PostTag[]
+
+  @@map("tags")
+}
+
+model PostTag {
+  id     String @id @default(cuid())
+  postId String
+  tagId  String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tags   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, tagId])
+  @@map("post_tags")
+}
+
+model Categories {
+  id    String @id @default(cuid())
+  title String @unique
+  posts PostCategory[]
+
+  @@map("categories")
+}
+
+model PostCategory {
+  id         String     @id @default(cuid())
+  postId     String
+  categoryId String
+  post       Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category   Categories @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, categoryId])
+  @@map("post_categories")
+}
+
+model Comments {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  votes     Vote[]
+
+  @@map("comments")
+}
+
+model Vote {
+  id         String       @id @default(cuid())
+  userId     String
+  targetId   String
+  targetType TargetType
+  type       VoteType
+  createdAt  DateTime     @default(now())
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Add these reverse relations
+  post       Post?        @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  comment    Comments?    @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetId, targetType])
+  @@map("votes")
+}
+
+enum Role {
+  admin
+  mod
+}
+
+enum TargetType {
+  post
+  comment
+}
+
+enum VoteType {
+  up
+  down
+}
