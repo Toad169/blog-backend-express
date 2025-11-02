@@ -18,11 +18,11 @@
   "type": "module",
   "main": "src/app.js",
   "scripts": {
-    "dev": "node --watch src/app.js",
-    "start": "node src/app.js",
-    "db:generate": "prisma generate",
-    "db:push": "prisma db push",
-    "db:seed": "node prisma/seed.js"
+    "dev": "bun --watch src/app.js",
+    "start": "bun src/app.js",
+    "db:generate": "bun prisma generate",
+    "db:push": "bun prisma db push",
+    "db:seed": "bun prisma/seed.js"
   },
   "dependencies": {
     "@prisma/client": "^6.18.0",
@@ -40,6 +40,11 @@
     "prisma": "^6.18.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "@types/bun": "latest"
+  },
+  "private": true,
+  "peerDependencies": {
+    "typescript": "^5"
   }
 }
