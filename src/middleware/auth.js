@@ -57,6 +57,7 @@ export const authenticate = async (req, res, next) => {
   }
 };
 
+// In src/middleware/auth.js, update the optionalAuth function:
 export const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.header('Authorization');
@@ -64,21 +65,26 @@ export const optionalAuth = async (req, res, next) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.replace('Bearer ', '');
       
-      const decoded = jwt.verify(token, config.jwtSecret);
-      
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        select: { 
-          id: true, 
-          username: true, 
-          email: true, 
-          role: true,
-          emailVerified: true
-        }
-      });
+      try {
+        const decoded = jwt.verify(token, config.jwtSecret);
+        
+        const user = await prisma.user.findUnique({
+          where: { id: decoded.userId },
+          select: { 
+            id: true, 
+            username: true, 
+            email: true, 
+            role: true,
+            emailVerified: true
+          }
+        });
 
-      if (user) {
-        req.user = user;
+        if (user) {
+          req.user = user;
+        }
+      } catch (error) {
+        // If token is invalid, just continue without user
+        console.log('Optional auth: Invalid token, continuing without user');
       }
     }
     

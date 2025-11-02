@@ -28,6 +28,10 @@ app.use('/api/users', userRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/votes', voteRoutes);
 
+app.get('/', (req, res) => {
+  res.send('Hello World!')
+})
+
 // Error handling middleware
 app.use((error, req, res, next) => {
   console.error(error);

@@ -7,8 +7,7 @@ import {
   getPostComments
 } from '../controllers/commentController.js';
 import { 
-  authenticate, 
-  authorize, 
+  authenticate,
   commentOwnership 
 } from '../middleware/auth.js';
 

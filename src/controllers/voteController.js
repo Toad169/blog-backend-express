@@ -99,7 +99,7 @@ export const getUserVote = async (req, res) => {
     const vote = await prisma.vote.findUnique({
       where: {
         userId_targetId_targetType: {
-          userId: req.user.id,
+          userId: req.user?.id || '', // Handle optional auth
           targetId,
           targetType
         }
@@ -137,6 +137,26 @@ export const getVoteCounts = async (req, res) => {
       downvotes,
       score: upvotes - downvotes
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getUserVotes = async (req, res) => {
+  try {
+    const votes = await prisma.vote.findMany({
+      where: {
+        userId: req.user.id
+      },
+      include: {
+        // You can include related data if needed
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    res.json({ votes });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

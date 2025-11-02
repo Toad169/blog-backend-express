@@ -12,7 +12,7 @@ export const createComment = async (req, res) => {
         postId
       },
       include: {
-        user: { select: { username: true } },
+        user: { select: { username: true, id: true } },
         votes: true
       }
     });
@@ -20,6 +20,46 @@ export const createComment = async (req, res) => {
     res.status(201).json(comment);
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+};
+
+export const getPostComments = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const comments = await prisma.comments.findMany({
+      where: { postId },
+      skip: parseInt(skip),
+      take: parseInt(limit),
+      include: {
+        user: { select: { username: true, id: true } },
+        votes: true,
+        _count: {
+          select: {
+            votes: {
+              where: { type: 'up' }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const total = await prisma.comments.count({ where: { postId } });
+
+    res.json({
+      comments,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -46,7 +86,7 @@ export const updateComment = async (req, res) => {
       where: { id: commentId },
       data: { content },
       include: {
-        user: { select: { username: true } },
+        user: { select: { username: true, id: true } },
         votes: true
       }
     });
