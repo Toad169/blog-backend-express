@@ -5,7 +5,8 @@ import {
   login, 
   getMe,
   refreshToken,
-  logout 
+  logout,
+  logoutAllDevices
 } from '../controllers/authController.js';
 import { authenticate } from '../middleware/auth.js';
 
