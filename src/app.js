@@ -10,6 +10,7 @@ import postRoutes from './routes/posts.js';
 import userRoutes from './routes/users.js';
 import commentRoutes from './routes/comments.js';
 import voteRoutes from './routes/votes.js';
+import { startTokenCleanup } from './services/tokenCleanup.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,13 +31,18 @@ app.use('/api/votes', voteRoutes);
 
 app.get('/', (req, res) => {
   res.send('Hello World!')
-})
+});
 
 // Error handling middleware
 app.use((error, req, res, next) => {
   console.error(error);
   res.status(500).json({ error: 'Something went wrong!' });
 });
+
+// Start token cleanup service
+if (config.nodeEnv === 'production') {
+  startTokenCleanup();
+}
 
 app.listen(config.port, () => {
   console.log(`Server running on port ${config.port}`);

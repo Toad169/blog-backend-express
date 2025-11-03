@@ -114,6 +114,15 @@ model Vote {
   @@map("votes")
 }
 
+model TokenBlacklist {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("token_blacklist")
+}
+
 enum Role {
   admin
   mod

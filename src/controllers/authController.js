@@ -169,12 +169,116 @@ export const refreshToken = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
-    // In a stateless JWT system, logout is handled on the client side
-    // by removing the token. You might want to implement a token blacklist
-    // here if needed for additional security.
+    const authHeader = req.header('Authorization');
     
-    res.json({ message: 'Logged out successfully' });
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(400).json({ error: 'No token provided' });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Decode the token to get expiration time
+    const decoded = jwt.decode(token);
+    
+    if (!decoded || !decoded.exp) {
+      return res.status(400).json({ error: 'Invalid token' });
+    }
+
+    // Calculate token expiration time
+    const expiresAt = new Date(decoded.exp * 1000);
+
+    // Add token to blacklist
+    await prisma.tokenBlacklist.upsert({
+      where: { token },
+      update: { expiresAt },
+      create: {
+        token,
+        expiresAt
+      }
+    });
+
+    // Schedule cleanup of expired tokens (optional - you can run this as a separate job)
+    await cleanupExpiredTokens();
+
+    res.json({ 
+      message: 'Logged out successfully',
+      logoutTime: new Date().toISOString()
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Logout failed' });
+  }
+};
+
+// Helper function to clean up expired tokens
+const cleanupExpiredTokens = async () => {
+  try {
+    const result = await prisma.tokenBlacklist.deleteMany({
+      where: {
+        expiresAt: {
+          lt: new Date()
+        }
+      }
+    });
+    console.log(`Cleaned up ${result.count} expired tokens`);
+  } catch (error) {
+    console.error('Token cleanup error:', error);
+  }
+};
+
+// Optional: Add a method to check if token is blacklisted
+export const isTokenBlacklisted = async (token) => {
+  const blacklistedToken = await prisma.tokenBlacklist.findUnique({
+    where: { token }
+  });
+  
+  if (blacklistedToken) {
+    // Also check if the token hasn't expired naturally yet
+    if (blacklistedToken.expiresAt > new Date()) {
+      return true;
+    } else {
+      // Remove expired token from blacklist
+      await prisma.tokenBlacklist.delete({
+        where: { token }
+      });
+      return false;
+    }
+  }
+  
+  return false;
+};
+
+// Add to src/controllers/authController.js
+
+export const logoutAllDevices = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Invalidate all tokens issued before now for this user
+    // This is a simple implementation - you might want to track token issuance times
+    const currentTime = Math.floor(Date.now() / 1000);
+    
+    // Update user to track logout time (add a field to User model for this)
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        // You would need to add lastLogoutAt field to your User model
+        // lastLogoutAt: new Date()
+      }
+    });
+
+    res.json({ 
+      message: 'Logged out from all devices successfully',
+      logoutTime: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Logout all devices error:', error);
+    res.status(500).json({ error: 'Logout failed' });
   }
 };

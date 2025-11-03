@@ -20,4 +20,7 @@ router.post('/refresh-token', refreshToken);
 router.get('/me', authenticate, getMe);
 router.post('/logout', authenticate, logout);
 
+// src/routes/auth.js - add this route
+router.post('/logout-all', authenticate, logoutAllDevices);
+
 export default router;

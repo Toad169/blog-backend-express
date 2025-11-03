@@ -2,6 +2,7 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env.js';
 import prisma from '../config/database.js';
+import { isTokenBlacklisted } from '../controllers/authController.js';
 
 export const authenticate = async (req, res, next) => {
   try {
@@ -15,6 +16,12 @@ export const authenticate = async (req, res, next) => {
     
     if (!token) {
       return res.status(401).json({ error: 'Access denied. No token provided.' });
+    }
+
+    // Check if token is blacklisted
+    const blacklisted = await isTokenBlacklisted(token);
+    if (blacklisted) {
+      return res.status(401).json({ error: 'Token has been invalidated. Please login again.' });
     }
 
     const decoded = jwt.verify(token, config.jwtSecret);
@@ -57,7 +64,7 @@ export const authenticate = async (req, res, next) => {
   }
 };
 
-// In src/middleware/auth.js, update the optionalAuth function:
+// Update optionalAuth to also check blacklist
 export const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.header('Authorization');
@@ -66,21 +73,25 @@ export const optionalAuth = async (req, res, next) => {
       const token = authHeader.replace('Bearer ', '');
       
       try {
-        const decoded = jwt.verify(token, config.jwtSecret);
-        
-        const user = await prisma.user.findUnique({
-          where: { id: decoded.userId },
-          select: { 
-            id: true, 
-            username: true, 
-            email: true, 
-            role: true,
-            emailVerified: true
-          }
-        });
+        // Check if token is blacklisted
+        const blacklisted = await isTokenBlacklisted(token);
+        if (!blacklisted) {
+          const decoded = jwt.verify(token, config.jwtSecret);
+          
+          const user = await prisma.user.findUnique({
+            where: { id: decoded.userId },
+            select: { 
+              id: true, 
+              username: true, 
+              email: true, 
+              role: true,
+              emailVerified: true
+            }
+          });
 
-        if (user) {
-          req.user = user;
+          if (user) {
+            req.user = user;
+          }
         }
       } catch (error) {
         // If token is invalid, just continue without user
@@ -94,6 +105,8 @@ export const optionalAuth = async (req, res, next) => {
     next();
   }
 };
+
+// ... rest of your existing middleware methods remain the same ...
 
 export const authorize = (roles = []) => {
   // Convert single role to array for flexibility
