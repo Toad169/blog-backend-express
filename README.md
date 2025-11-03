@@ -1,4 +1,4 @@
-# gaynigger
+# bawok ta iki
 
 To install dependencies:
 
