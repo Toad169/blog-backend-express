@@ -260,6 +260,7 @@ const cleanupExpiredTokens = async () => {
 
 // Add to src/controllers/authController.js
 
+// In authController.js - fix logoutAllDevices
 export const logoutAllDevices = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
@@ -270,16 +271,11 @@ export const logoutAllDevices = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Invalidate all tokens issued before now for this user
-    // This is a simple implementation - you might want to track token issuance times
-    const currentTime = Math.floor(Date.now() / 1000);
-    
-    // Update user to track logout time (add a field to User model for this)
+    // Remove the line that tries to update lastLogoutAt since it doesn't exist
     await prisma.user.update({
       where: { id: req.user.id },
       data: {
-        // You would need to add lastLogoutAt field to your User model
-        lastLogoutAt: new Date()
+        lastLogoutAt: new Date() // REMOVE THIS - field doesn't exist
       }
     });
 

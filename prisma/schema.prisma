@@ -9,15 +9,15 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  username      String   @unique
-  email         String   @unique
+  id            String    @id @default(cuid())
+  username      String    @unique
+  email         String    @unique
   passwordHash  String
-  emailVerified Boolean  @default(false)
-  role          Role     @default(user)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  lastLogoutAt  DateTime @default(now())
+  emailVerified Boolean   @default(false)
+  role          Role      @default(user)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLogoutAt  DateTime? // nullable; update explicitly on logout
   posts         Post[]
   comments      Comments[]
   votes         Vote[]
