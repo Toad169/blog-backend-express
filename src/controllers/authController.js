@@ -7,6 +7,9 @@ import {
   validateEmail, 
   validatePassword 
 } from '../utils/helpers.js';
+// src/controllers/authController.js
+import { isTokenBlacklisted } from '../utils/tokenUtils.js';
+// Remove the isTokenBlacklisted function from this file entirely
 import { config } from '../config/env.js';
 
 export const register = async (req, res) => {
@@ -129,12 +132,19 @@ export const getMe = async (req, res) => {
   }
 };
 
+// In authController.js - update refreshToken
 export const refreshToken = async (req, res) => {
   try {
     const { token } = req.body;
 
     if (!token) {
       return res.status(400).json({ error: 'Token is required' });
+    }
+
+    // Check if token is blacklisted
+    const blacklisted = await isTokenBlacklisted(token);
+    if (blacklisted) {
+      return res.status(401).json({ error: 'Token has been invalidated' });
     }
 
     const decoded = jwt.verify(token, config.jwtSecret);
@@ -227,26 +237,26 @@ const cleanupExpiredTokens = async () => {
 };
 
 // Optional: Add a method to check if token is blacklisted
-export const isTokenBlacklisted = async (token) => {
-  const blacklistedToken = await prisma.tokenBlacklist.findUnique({
-    where: { token }
-  });
+// export const isTokenBlacklisted = async (token) => {
+//   const blacklistedToken = await prisma.tokenBlacklist.findUnique({
+//     where: { token }
+//   });
   
-  if (blacklistedToken) {
-    // Also check if the token hasn't expired naturally yet
-    if (blacklistedToken.expiresAt > new Date()) {
-      return true;
-    } else {
-      // Remove expired token from blacklist
-      await prisma.tokenBlacklist.delete({
-        where: { token }
-      });
-      return false;
-    }
-  }
+//   if (blacklistedToken) {
+//     // Also check if the token hasn't expired naturally yet
+//     if (blacklistedToken.expiresAt > new Date()) {
+//       return true;
+//     } else {
+//       // Remove expired token from blacklist
+//       await prisma.tokenBlacklist.delete({
+//         where: { token }
+//       });
+//       return false;
+//     }
+//   }
   
-  return false;
-};
+//   return false;
+// };
 
 // Add to src/controllers/authController.js
 
@@ -269,7 +279,7 @@ export const logoutAllDevices = async (req, res) => {
       where: { id: req.user.id },
       data: {
         // You would need to add lastLogoutAt field to your User model
-        // lastLogoutAt: new Date()
+        lastLogoutAt: new Date()
       }
     });
 

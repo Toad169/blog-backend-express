@@ -14,9 +14,10 @@ model User {
   email         String   @unique
   passwordHash  String
   emailVerified Boolean  @default(false)
-  role          Role     @default(mod)
+  role          Role     @default(user)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  lastLogoutAt  DateTime @default(now())
   posts         Post[]
   comments      Comments[]
   votes         Vote[]
@@ -126,6 +127,7 @@ model TokenBlacklist {
 enum Role {
   admin
   mod
+  user
 }
 
 enum TargetType {

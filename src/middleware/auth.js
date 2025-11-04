@@ -2,7 +2,9 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env.js';
 import prisma from '../config/database.js';
-import { isTokenBlacklisted } from '../controllers/authController.js';
+// src/middleware/auth.js
+import { isTokenBlacklisted } from '../utils/tokenUtils.js';
+// Remove this line: import { isTokenBlacklisted } from '../controllers/authController.js';
 
 export const authenticate = async (req, res, next) => {
   try {
@@ -65,6 +67,7 @@ export const authenticate = async (req, res, next) => {
 };
 
 // Update optionalAuth to also check blacklist
+// In auth.js - update optionalAuth
 export const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.header('Authorization');
@@ -72,10 +75,10 @@ export const optionalAuth = async (req, res, next) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.replace('Bearer ', '');
       
-      try {
-        // Check if token is blacklisted
-        const blacklisted = await isTokenBlacklisted(token);
-        if (!blacklisted) {
+      // Check if token is blacklisted
+      const blacklisted = await isTokenBlacklisted(token);
+      if (!blacklisted) {
+        try {
           const decoded = jwt.verify(token, config.jwtSecret);
           
           const user = await prisma.user.findUnique({
@@ -92,16 +95,17 @@ export const optionalAuth = async (req, res, next) => {
           if (user) {
             req.user = user;
           }
+        } catch (error) {
+          // Silently continue without user for optional auth
+          console.log('Optional auth: Invalid token, continuing without user');
         }
-      } catch (error) {
-        // If token is invalid, just continue without user
-        console.log('Optional auth: Invalid token, continuing without user');
       }
     }
     
     next();
   } catch (error) {
-    // For optional auth, we just continue without setting req.user
+    // For optional auth, always continue without setting req.user
+    console.error('Optional auth middleware error:', error);
     next();
   }
 };

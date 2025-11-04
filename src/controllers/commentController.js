@@ -1,13 +1,32 @@
 // src/controllers/commentController.js
 import prisma from '../config/database.js';
 
+// In commentController.js - update createComment
 export const createComment = async (req, res) => {
   try {
     const { postId, content } = req.body;
 
+    // Validation
+    if (!postId || !content) {
+      return res.status(400).json({ error: 'Post ID and content are required' });
+    }
+
+    if (content.trim().length === 0) {
+      return res.status(400).json({ error: 'Comment content cannot be empty' });
+    }
+
+    // Check if post exists
+    const post = await prisma.post.findUnique({
+      where: { id: postId }
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
     const comment = await prisma.comments.create({
       data: {
-        content,
+        content: content.trim(),
         userId: req.user.id,
         postId
       },

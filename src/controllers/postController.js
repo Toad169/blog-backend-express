@@ -9,6 +9,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// In your existing postController.js, update the createPost and updatePost methods:
+
+// In createPost method, update the categories handling:
 export const createPost = async (req, res) => {
   try {
     const { title, content, tags, categories } = req.body;
@@ -18,6 +21,16 @@ export const createPost = async (req, res) => {
     
     // Convert markdown to HTML
     const contentHtml = await markdownToHtml(content);
+
+    // Parse categories if they're sent as JSON string (from form-data)
+    let categoryIds = [];
+    if (categories) {
+      try {
+        categoryIds = typeof categories === 'string' ? JSON.parse(categories) : categories;
+      } catch (error) {
+        categoryIds = Array.isArray(categories) ? categories : [categories];
+      }
+    }
 
     const post = await prisma.post.create({
       data: {
@@ -38,9 +51,9 @@ export const createPost = async (req, res) => {
           })) || []
         },
         categories: {
-          create: categories?.map(categoryId => ({
+          create: categoryIds.map(categoryId => ({
             category: { connect: { id: categoryId } }
-          })) || []
+          }))
         }
       },
       include: {
@@ -67,6 +80,7 @@ export const createPost = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+
 
 export const getPosts = async (req, res) => {
   try {
@@ -208,6 +222,15 @@ export const updatePost = async (req, res) => {
       oldImagePath = path.join(__dirname, '../../uploads', oldFilename);
     }
 
+    let categoryIds = [];
+    if (categories) {
+      try {
+        categoryIds = typeof categories === 'string' ? JSON.parse(categories) : categories;
+      } catch (error) {
+        categoryIds = Array.isArray(categories) ? categories : [categories];
+      }
+    }
+
     const post = await prisma.post.update({
       where: { slug },
       data: {
@@ -230,7 +253,7 @@ export const updatePost = async (req, res) => {
         ...(categories && {
           categories: {
             deleteMany: {},
-            create: categories.map(categoryId => ({
+            create: categoryIds.map(categoryId => ({
               category: { connect: { id: categoryId } }
             }))
           }
