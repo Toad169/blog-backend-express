@@ -36,8 +36,8 @@ app.get('/', (req, res) => {
   res.send('Hello World!')
 });
 
-// 404 Handler - MUST COME AFTER ALL ROUTES
-app.use('*', (req, res) => {
+// 404 Handler - MUST COME AFTER ALL ROUTES - FIXED: Remove the '*' parameter
+app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
