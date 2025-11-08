@@ -22,6 +22,21 @@ export const createPost = async (req, res) => {
     // Convert markdown to HTML
     const contentHtml = await markdownToHtml(content);
 
+    // Parse tags if they're sent as JSON string (from form-data)
+    let tagsArray = [];
+    if (tags) {
+      try {
+        tagsArray = typeof tags === 'string' ? JSON.parse(tags) : tags;
+      } catch (error) {
+        // If parsing fails, try to split by comma or treat as single tag
+        if (typeof tags === 'string') {
+          tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+        } else {
+          tagsArray = Array.isArray(tags) ? tags : [tags];
+        }
+      }
+    }
+
     // Parse categories if they're sent as JSON string (from form-data)
     let categoryIds = [];
     if (categories) {
@@ -32,6 +47,22 @@ export const createPost = async (req, res) => {
       }
     }
 
+    // Validate that we have arrays
+    if (!Array.isArray(tagsArray)) {
+      tagsArray = [];
+    }
+    if (!Array.isArray(categoryIds)) {
+      categoryIds = [];
+    }
+
+    console.log('Creating post with:', {
+      title,
+      tags: tagsArray,
+      categories: categoryIds,
+      tagsType: typeof tags,
+      categoriesType: typeof categories
+    });
+
     const post = await prisma.post.create({
       data: {
         title,
@@ -41,14 +72,14 @@ export const createPost = async (req, res) => {
         imageUrl,
         userId: req.user.id,
         tags: {
-          create: tags?.map(tagName => ({
+          create: tagsArray.map(tagName => ({
             tag: {
               connectOrCreate: {
-                where: { name: tagName.toLowerCase() },
-                create: { name: tagName.toLowerCase() }
+                where: { name: tagName.toLowerCase().trim() },
+                create: { name: tagName.toLowerCase().trim() }
               }
             }
-          })) || []
+          }))
         },
         categories: {
           create: categoryIds.map(categoryId => ({
@@ -73,6 +104,7 @@ export const createPost = async (req, res) => {
 
     res.status(201).json(post);
   } catch (error) {
+    console.error('Post creation error:', error);
     // Clean up uploaded file if post creation fails
     if (req.file) {
       await fs.unlink(path.join(__dirname, '../../uploads', req.file.filename)).catch(console.error);
@@ -80,7 +112,6 @@ export const createPost = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
-
 
 export const getPosts = async (req, res) => {
   try {
@@ -222,6 +253,20 @@ export const updatePost = async (req, res) => {
       oldImagePath = path.join(__dirname, '../../uploads', oldFilename);
     }
 
+    // Parse tags if they're sent as JSON string
+    let tagsArray = [];
+    if (tags) {
+      try {
+        tagsArray = typeof tags === 'string' ? JSON.parse(tags) : tags;
+      } catch (error) {
+        if (typeof tags === 'string') {
+          tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+        } else {
+          tagsArray = Array.isArray(tags) ? tags : [tags];
+        }
+      }
+    }
+
     let categoryIds = [];
     if (categories) {
       try {
@@ -229,6 +274,14 @@ export const updatePost = async (req, res) => {
       } catch (error) {
         categoryIds = Array.isArray(categories) ? categories : [categories];
       }
+    }
+
+    // Validate arrays
+    if (!Array.isArray(tagsArray)) {
+      tagsArray = [];
+    }
+    if (!Array.isArray(categoryIds)) {
+      categoryIds = [];
     }
 
     const post = await prisma.post.update({
@@ -240,11 +293,11 @@ export const updatePost = async (req, res) => {
         ...(tags && {
           tags: {
             deleteMany: {},
-            create: tags.map(tagName => ({
+            create: tagsArray.map(tagName => ({
               tag: {
                 connectOrCreate: {
-                  where: { name: tagName.toLowerCase() },
-                  create: { name: tagName.toLowerCase() }
+                  where: { name: tagName.toLowerCase().trim() },
+                  create: { name: tagName.toLowerCase().trim() }
                 }
               }
             }))
@@ -281,6 +334,7 @@ export const updatePost = async (req, res) => {
 
     res.json(post);
   } catch (error) {
+    console.error('Post update error:', error);
     // Clean up new uploaded file if update fails
     if (req.file) {
       await fs.unlink(path.join(__dirname, '../../uploads', req.file.filename)).catch(console.error);
