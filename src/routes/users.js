@@ -5,7 +5,10 @@ import {
   updateProfile,
   deleteAccount,
   deleteUser,
-  getUserById
+  getUserById,
+  getAllUsers,
+  verifyUser,
+  changeUserRole
 } from '../controllers/userController.js';
 import { 
   authenticate, 
@@ -20,7 +23,10 @@ router.put('/profile', authenticate, updateProfile);
 router.delete('/profile', authenticate, deleteAccount);
 
 // Admin only routes
+router.get('/', authenticate, authorize(['admin']), getAllUsers); // Get all users
 router.get('/:userId', authenticate, authorize(['admin', 'mod']), getUserById);
+router.put('/:userId/verify', authenticate, authorize(['admin']), verifyUser); // Verify user
+router.put('/:userId/role', authenticate, authorize(['admin']), changeUserRole); // Change user role
 router.delete('/:userId', authenticate, authorize(['admin']), deleteUser);
 
 export default router;

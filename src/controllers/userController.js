@@ -198,3 +198,97 @@ export const deleteUser = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Add these new methods to your existing userController.js
+
+// Get all users (admin only)
+export const getAllUsers = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
+
+    const users = await prisma.user.findMany({
+      skip,
+      take: limit,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        emailVerified: true,
+        createdAt: true,
+        updatedAt: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const total = await prisma.user.count();
+
+    res.json({
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Verify user (admin only)
+export const verifyUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { emailVerified: true },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        emailVerified: true
+      }
+    });
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Change user role (admin only)
+export const changeUserRole = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    if (!['user', 'mod', 'admin'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { role },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        emailVerified: true
+      }
+    });
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Keep all your existing methods (getProfile, getUserById, updateProfile, deleteAccount, deleteUser)
+// ... your existing code remains the same ...
