@@ -19,7 +19,11 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // Middleware - MUST COME FIRST
-app.use(cors());
+app.use(cors({
+  origin: true, // Allow all origins in development
+  credentials: true,
+}));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
