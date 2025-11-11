@@ -25,7 +25,6 @@ model User {
   @@map("users")
 }
 
-// Add to Post model in prisma/schema.prisma
 model Post {
   id         String       @id @default(cuid())
   userId     String
@@ -36,10 +35,9 @@ model Post {
   imageUrl   String?
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
-  // ... rest of fields
   user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   comments   Comments[]
-  votes      Vote[]
+  votes      Vote[]       @relation("PostVotes")
   tags       PostTag[]
   categories PostCategory[]
 
@@ -93,24 +91,29 @@ model Comments {
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  votes     Vote[]
+  votes     Vote[]   @relation("CommentVotes")
 
   @@map("comments")
 }
 
 model Vote {
-  id         String       @id @default(cuid())
+  id         String     @id @default(cuid())
   userId     String
   targetId   String
   targetType TargetType
   type       VoteType
-  createdAt  DateTime     @default(now())
-  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime   @default(now())
   
-  // Add these reverse relations
-  post       Post?        @relation(fields: [targetId], references: [id], onDelete: Cascade)
-  comment    Comments?    @relation(fields: [targetId], references: [id], onDelete: Cascade)
-
+  // Relations
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Add explicit relations for posts and comments with relation names
+  post       Post?      @relation("PostVotes", fields: [postId], references: [id], onDelete: Cascade)
+  postId     String?
+  
+  comment    Comments?  @relation("CommentVotes", fields: [commentId], references: [id], onDelete: Cascade)
+  commentId  String?
+  
   @@unique([userId, targetId, targetType])
   @@map("votes")
 }
