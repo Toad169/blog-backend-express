@@ -20,9 +20,9 @@
   "scripts": {
     "dev": "bun --watch src/app.js",
     "start": "bun src/app.js",
-    "db:generate": "bun prisma generate",
-    "db:push": "bun prisma db push",
-    "db:seed": "bun prisma/seed.js"
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "prisma/seed.js"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
