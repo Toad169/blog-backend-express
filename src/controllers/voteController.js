@@ -1,54 +1,50 @@
-// src/controllers/voteController.js
+// src/controllers/voteController.js - FINAL WORKING VERSION
 import prisma from '../config/database.js';
 
 export const vote = async (req, res) => {
   try {
     const { targetId, targetType, type } = req.body;
 
+    console.log('=== VOTE REQUEST START ===');
+    console.log('User:', req.user.id);
+    console.log('Target:', targetId);
+    console.log('Target Type:', targetType);
+    console.log('Vote Type:', type);
+
     // Validate input
     if (!targetId || !targetType || !type) {
+      console.log('Missing fields');
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
     if (!['post', 'comment'].includes(targetType)) {
+      console.log('Invalid target type');
       return res.status(400).json({ error: 'Invalid target type' });
     }
 
     if (!['up', 'down'].includes(type)) {
+      console.log('Invalid vote type');
       return res.status(400).json({ error: 'Invalid vote type' });
     }
 
-    // Check if target exists and prepare vote data
+    // Check if target exists
     let targetExists = false;
-    let voteData = {
-      userId: req.user.id,
-      targetId,
-      targetType,
-      type
-    };
-
     if (targetType === 'post') {
-      const post = await prisma.post.findUnique({
-        where: { id: targetId }
-      });
+      const post = await prisma.post.findUnique({ where: { id: targetId } });
       targetExists = !!post;
-      if (targetExists) {
-        voteData.postId = targetId; // Set the postId for the relation
-      }
-    } else if (targetType === 'comment') {
-      const comment = await prisma.comments.findUnique({
-        where: { id: targetId }
+      console.log('Post exists:', targetExists, post?.title);
+    } else {
+      const comment = await prisma.comments.findUnique({ 
+        where: { id: targetId },
+        include: { user: true }
       });
       targetExists = !!comment;
-      if (targetExists) {
-        voteData.commentId = targetId; // Set the commentId for the relation
-      }
+      console.log('Comment exists:', targetExists, comment?.content);
     }
 
     if (!targetExists) {
-      return res.status(404).json({ 
-        error: `${targetType.charAt(0).toUpperCase() + targetType.slice(1)} not found` 
-      });
+      console.log('Target not found');
+      return res.status(404).json({ error: `${targetType} not found` });
     }
 
     // Check for existing vote
@@ -62,12 +58,14 @@ export const vote = async (req, res) => {
       }
     });
 
-    let vote;
-    let action;
+    console.log('Existing vote:', existingVote);
 
+    let result;
+    
     if (existingVote) {
       if (existingVote.type === type) {
-        // Same vote type - remove vote (undo)
+        // Remove vote if same type clicked again
+        console.log('Removing vote');
         await prisma.vote.delete({
           where: {
             userId_targetId_targetType: {
@@ -77,17 +75,11 @@ export const vote = async (req, res) => {
             }
           }
         });
-        action = 'removed';
-        
-        return res.json({
-          message: 'Vote removed',
-          action: 'removed',
-          vote: null,
-          previousType: type
-        });
+        result = { action: 'removed', vote: null };
       } else {
-        // Different vote type - update vote (switch)
-        vote = await prisma.vote.update({
+        // Update vote if different type
+        console.log('Updating vote');
+        const vote = await prisma.vote.update({
           where: {
             userId_targetId_targetType: {
               userId: req.user.id,
@@ -95,82 +87,86 @@ export const vote = async (req, res) => {
               targetType
             }
           },
-          data: { 
-            type,
-            // Also update the relation fields if they exist
-            ...(targetType === 'post' ? { postId: targetId } : { commentId: targetId })
-          }
+          data: { type }
         });
-        action = 'updated';
-        
-        return res.json({
-          message: 'Vote updated',
-          action: 'updated',
-          vote,
-          previousType: existingVote.type
-        });
+        result = { action: 'updated', vote };
       }
     } else {
-      // New vote - create with proper relation fields
-      vote = await prisma.vote.create({
-        data: voteData
-      });
-      action = 'created';
+      // Create new vote
+      console.log('Creating new vote');
+      const voteData = {
+        userId: req.user.id,
+        targetId,
+        targetType,
+        type
+      };
       
-      return res.status(201).json({
-        message: 'Vote created',
-        action: 'created',
-        vote
-      });
+      // Add relation field based on target type
+      if (targetType === 'post') {
+        voteData.postId = targetId;
+      } else {
+        voteData.commentId = targetId;
+      }
+
+      const vote = await prisma.vote.create({ data: voteData });
+      result = { action: 'created', vote };
     }
+
+    // Get updated counts
+    const upvotes = await prisma.vote.count({
+      where: { targetId, targetType, type: 'up' }
+    });
+
+    const downvotes = await prisma.vote.count({
+      where: { targetId, targetType, type: 'down' }
+    });
+
+    const score = upvotes - downvotes;
+
+    console.log('Final counts - Upvotes:', upvotes, 'Downvotes:', downvotes, 'Score:', score);
+    console.log('=== VOTE REQUEST END ===');
+
+    res.json({
+      success: true,
+      ...result,
+      upvotes,
+      downvotes,
+      score
+    });
+
   } catch (error) {
-    console.error('Vote error:', error);
-    
-    // Handle specific Prisma errors
-    if (error.code === 'P2003') {
-      return res.status(400).json({ 
-        error: 'Invalid user or target reference' 
-      });
-    }
+    console.error('=== VOTE ERROR ===', error);
     
     if (error.code === 'P2002') {
-      return res.status(400).json({ 
-        error: 'Vote already exists' 
-      });
+      return res.status(400).json({ error: 'Vote already exists' });
     }
     
-    res.status(400).json({ 
-      error: error.message,
-      code: error.code 
-    });
+    res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 };
 
 export const getUserVote = async (req, res) => {
   try {
     const { targetId, targetType } = req.params;
+    const userId = req.user?.id;
 
-    // For optional auth, check if user is authenticated
-    if (!req.user?.id) {
-      return res.json({ vote: null });
-    }
+    console.log('Get user vote:', { targetId, targetType, userId });
 
-    // Validate targetType
-    if (!['post', 'comment'].includes(targetType)) {
-      return res.status(400).json({ error: 'Invalid target type' });
+    if (!userId) {
+      return res.json({ success: true, vote: null });
     }
 
     const vote = await prisma.vote.findUnique({
       where: {
         userId_targetId_targetType: {
-          userId: req.user.id,
+          userId,
           targetId,
           targetType
         }
       }
     });
 
-    res.json({ vote });
+    res.json({ success: true, vote });
   } catch (error) {
     console.error('Get user vote error:', error);
     res.status(500).json({ error: error.message });
@@ -181,10 +177,7 @@ export const getVoteCounts = async (req, res) => {
   try {
     const { targetId, targetType } = req.params;
 
-    // Validate targetType
-    if (!['post', 'comment'].includes(targetType)) {
-      return res.status(400).json({ error: 'Invalid target type' });
-    }
+    console.log('Get vote counts:', { targetId, targetType });
 
     const upvotes = await prisma.vote.count({
       where: {
@@ -202,10 +195,13 @@ export const getVoteCounts = async (req, res) => {
       }
     });
 
+    const score = upvotes - downvotes;
+
     res.json({
+      success: true,
       upvotes,
       downvotes,
-      score: upvotes - downvotes
+      score
     });
   } catch (error) {
     console.error('Get vote counts error:', error);
@@ -216,18 +212,13 @@ export const getVoteCounts = async (req, res) => {
 export const getUserVotes = async (req, res) => {
   try {
     const votes = await prisma.vote.findMany({
-      where: {
-        userId: req.user.id
-      },
+      where: { userId: req.user.id },
       include: {
-        // You can include related data if needed
-      },
-      orderBy: {
-        createdAt: 'desc'
+        post: { select: { title: true, slug: true } },
+        comment: { select: { content: true } }
       }
     });
-
-    res.json({ votes });
+    res.json({ success: true, votes });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

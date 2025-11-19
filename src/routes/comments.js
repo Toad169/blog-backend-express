@@ -1,24 +1,23 @@
-// src/routes/comments.js
+// src/routes/comments.js - FIXED VERSION
 import express from 'express';
 import {
   createComment,
   updateComment,
   deleteComment,
-  getPostComments
+  getPostComments,
+  getComment
 } from '../controllers/commentController.js';
-import { 
-  authenticate,
-  commentOwnership 
-} from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js'; // REMOVE commentOwnership import
 
 const router = express.Router();
 
 // Public routes
 router.get('/post/:postId', getPostComments);
 
-// Protected routes
+// Protected routes - REMOVE commentOwnership middleware
 router.post('/', authenticate, createComment);
-router.put('/:commentId', authenticate, commentOwnership, updateComment);
-router.delete('/:commentId', authenticate, commentOwnership, deleteComment);
+router.get('/:commentId', getComment); // This can be public
+router.put('/:commentId', authenticate, updateComment); // Remove commentOwnership
+router.delete('/:commentId', authenticate, deleteComment); // Remove commentOwnership
 
 export default router;

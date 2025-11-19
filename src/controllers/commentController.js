@@ -6,7 +6,8 @@ export const createComment = async (req, res) => {
   try {
     const { postId, content } = req.body;
 
-    // Validation
+    console.log('CREATE COMMENT:', { postId, userId: req.user.id });
+
     if (!postId || !content) {
       return res.status(400).json({ error: 'Post ID and content are required' });
     }
@@ -16,10 +17,7 @@ export const createComment = async (req, res) => {
     }
 
     // Check if post exists
-    const post = await prisma.post.findUnique({
-      where: { id: postId }
-    });
-
+    const post = await prisma.post.findUnique({ where: { id: postId } });
     if (!post) {
       return res.status(404).json({ error: 'Post not found' });
     }
@@ -31,14 +29,15 @@ export const createComment = async (req, res) => {
         postId
       },
       include: {
-        user: { select: { username: true, id: true } },
-        votes: true
+        user: { select: { username: true, id: true } }
       }
     });
 
-    res.status(201).json(comment);
+    res.status(201).json({ success: true, comment });
+
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('CREATE COMMENT ERROR:', error);
+    res.status(500).json({ error: 'Failed to create comment: ' + error.message });
   }
 };
 
@@ -87,32 +86,47 @@ export const updateComment = async (req, res) => {
     const { commentId } = req.params;
     const { content } = req.body;
 
-    // Check if comment exists and user owns it
-    const existingComment = await prisma.comments.findUnique({
+    console.log('UPDATE COMMENT REQUEST:', { commentId, userId: req.user.id });
+
+    if (!content || content.trim().length === 0) {
+      return res.status(400).json({ error: 'Comment content is required' });
+    }
+
+    // Find the comment first
+    const comment = await prisma.comments.findUnique({
       where: { id: commentId },
       include: { user: true }
     });
 
-    if (!existingComment) {
+    if (!comment) {
       return res.status(404).json({ error: 'Comment not found' });
     }
 
-    if (existingComment.userId !== req.user.id && !['admin', 'mod'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Access denied' });
+    // Check permissions
+    const isOwner = comment.userId === req.user.id;
+    const isAdmin = ['admin', 'mod'].includes(req.user.role);
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: 'You can only edit your own comments' });
     }
 
-    const comment = await prisma.comments.update({
+    // Update the comment
+    const updatedComment = await prisma.comments.update({
       where: { id: commentId },
-      data: { content },
+      data: { 
+        content: content.trim(),
+        updatedAt: new Date()
+      },
       include: {
-        user: { select: { username: true, id: true } },
-        votes: true
+        user: { select: { username: true, id: true } }
       }
     });
 
-    res.json(comment);
+    res.json({ success: true, comment: updatedComment });
+
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('UPDATE COMMENT ERROR:', error);
+    res.status(500).json({ error: 'Failed to update comment: ' + error.message });
   }
 };
 
@@ -120,25 +134,76 @@ export const deleteComment = async (req, res) => {
   try {
     const { commentId } = req.params;
 
-    const existingComment = await prisma.comments.findUnique({
+    console.log('DELETE COMMENT REQUEST:', { commentId, userId: req.user.id });
+
+    // First, find the comment with user info
+    const comment = await prisma.comments.findUnique({
       where: { id: commentId },
       include: { user: true }
     });
 
-    if (!existingComment) {
+    if (!comment) {
+      console.log('Comment not found');
       return res.status(404).json({ error: 'Comment not found' });
     }
 
-    if (existingComment.userId !== req.user.id && !['admin', 'mod'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Access denied' });
+    console.log('Comment found:', { 
+      commentId: comment.id, 
+      commentUserId: comment.userId, 
+      requestUserId: req.user.id,
+      userRole: req.user.role 
+    });
+
+    // Check permissions
+    const isOwner = comment.userId === req.user.id;
+    const isAdmin = ['admin', 'mod'].includes(req.user.role);
+
+    if (!isOwner && !isAdmin) {
+      console.log('Permission denied');
+      return res.status(403).json({ error: 'You can only delete your own comments' });
     }
 
+    console.log('Permission granted, deleting comment...');
+
+    // Delete the comment
     await prisma.comments.delete({
       where: { id: commentId }
     });
 
-    res.json({ message: 'Comment deleted successfully' });
+    console.log('Comment deleted successfully');
+    res.json({ success: true, message: 'Comment deleted successfully' });
+
   } catch (error) {
+    console.error('DELETE COMMENT ERROR:', error);
+    
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+    
+    res.status(500).json({ error: 'Failed to delete comment: ' + error.message });
+  }
+};
+
+// Add this function to src/controllers/commentController.js
+export const getComment = async (req, res) => {
+  try {
+    const { commentId } = req.params;
+
+    const comment = await prisma.comments.findUnique({
+      where: { id: commentId },
+      include: {
+        user: { select: { username: true, id: true } },
+        post: { select: { id: true, title: true, slug: true } }
+      }
+    });
+
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    res.json(comment);
+  } catch (error) {
+    console.error('Get comment error:', error);
     res.status(500).json({ error: error.message });
   }
 };

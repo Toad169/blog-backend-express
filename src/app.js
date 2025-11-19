@@ -1,9 +1,10 @@
-// src/app.js
+// src/app.js - FIXED VERSION
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from './config/env.js';
+import prisma from './config/database.js'; // ADD THIS IMPORT
 
 import authRoutes from './routes/auth.js';
 import postRoutes from './routes/posts.js';
@@ -36,11 +37,57 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/votes', voteRoutes);
 app.use('/api/categories', categoryRoutes);
 
+// Debug routes - ADD THESE AFTER ALL YOUR ROUTES
+app.get('/api/debug-votes', async (req, res) => {
+  try {
+    const votes = await prisma.vote.findMany({
+      include: {
+        user: { select: { username: true } },
+        post: { select: { title: true } },
+        comment: { select: { content: true } }
+      }
+    });
+    res.json({ totalVotes: votes.length, votes });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/debug-comments', async (req, res) => {
+  try {
+    const comments = await prisma.comments.findMany({
+      include: {
+        user: { select: { username: true, id: true } },
+        post: { select: { title: true } }
+      }
+    });
+    res.json({ totalComments: comments.length, comments });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add debug route for posts too
+app.get('/api/debug-posts', async (req, res) => {
+  try {
+    const posts = await prisma.post.findMany({
+      include: {
+        user: { select: { username: true, id: true } },
+        comments: true,
+        votes: true
+      }
+    });
+    res.json({ totalPosts: posts.length, posts });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/', (req, res) => {
   res.send('Hello World!')
 });
 
-// 404 Handler - MUST COME AFTER ALL ROUTES - FIXED: Remove the '*' parameter
+// 404 Handler - MUST COME AFTER ALL ROUTES
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
