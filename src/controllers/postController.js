@@ -418,3 +418,48 @@ export const getUserPosts = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Add this to your postController.js
+export const getPostById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const post = await prisma.post.findUnique({
+      where: { id },
+      include: {
+        tags: { include: { tag: true } },
+        categories: { include: { category: true } },
+        user: { select: { username: true, id: true } },
+        comments: {
+          include: {
+            user: { select: { username: true, id: true } },
+            _count: {
+              select: {
+                votes: {
+                  where: { type: 'up' }
+                }
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        },
+        _count: {
+          select: {
+            comments: true,
+            votes: {
+              where: { type: 'up' }
+            }
+          }
+        }
+      }
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    res.json(post);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

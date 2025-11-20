@@ -6,7 +6,8 @@ import {
   getPost,
   updatePost,
   deletePost,
-  getUserPosts
+  getUserPosts,
+  getPostById
 } from '../controllers/postController.js';
 import { 
   authenticate, 
@@ -22,6 +23,8 @@ const router = express.Router();
 router.get('/', optionalAuth, getPosts); // Optional auth for personalized content
 router.get('/:slug', optionalAuth, getPost);
 router.get('/user/:userId', getUserPosts);
+// In src/routes/posts.js, add this route:
+router.get('/id/:id', getPostById);
 
 // Protected routes
 router.post('/', authenticate, upload.single('image'), createPost);
